@@ -1,0 +1,86 @@
+---
+title: "Practical Machine Learning - Course Project"
+author: "Joel Tworek"
+date: "23 November 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+### Background 
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+### Project Objective
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+## Data Preperation
+
+Load required library's for the project
+```{r library}
+#library(AppliedPredictiveModeling)
+library(caret)
+library(randomForest)
+```
+
+Import data
+```{r import}
+Train <- read.csv('./pml-training.csv', header=T)
+Validation <- read.csv('./pml-testing.csv', header=T)
+dim(Train); dim(Validation)
+```
+
+
+## Data cleansing
+
+Set classe to a factor variable and remove the user id, timestamp and window data in the first 7 columns as these variables are not predictors.
+```{r}
+Train$classe <- as.factor(Train$classe)
+Train <- Train[,-c(1:7)]
+```
+
+
+Remove near zero variance variables and variables with NAs. These do not make good predictors in model building and there are already alot of predictor variables available with full data.
+```{r nzv}
+Train <- Train[, -nearZeroVar(Train)]
+
+NAs <- colnames(Train[colSums(is.na(Train)) == 0])
+Train <- Train[NAs]  
+```
+
+
+Partition the Training data into 2 datasets, Training and Testing using a 70:30 random split in order to conduct a validation test before predicting on the final Validation data set.
+```{r }
+set.seed(321)
+inTrain <- createDataPartition(y=Train$classe, p=0.7, list=FALSE)
+training <- Train[inTrain, ]; testing <- Train[-inTrain, ]
+dim(training); dim(testing)
+```
+
+## Prediction Model
+The random forest method is used for the prediction model and validated on the testing data set. The random forest method was used due to the high degree of accuracy they provide for prediction classifications.   
+```{r rf}
+#modFit <- train(classe ~., data=training, method="rf", prox=TRUE)
+modFit <- randomForest(classe ~. , data = training, ntree=1000)
+pred <- predict(modFit, testing)
+```
+
+To evaluate the model performacne the confusionmatrix method was used
+```{r eval}
+testing$predRight <- pred==testing$classe
+confusionMatrix(pred,testing$classe)
+```
+
+The model performed with a high degree of accuracy of 99.56% on the testing data set
+
+Finally apply the random forest model predictions on the Validation data set
+
+```{r Val}
+pred_final <- predict(modFit, Validation)
+```
+
